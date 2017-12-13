@@ -1,20 +1,17 @@
 /*
- * Project GPS-Tracker
- * Description:
- * Author:
- * Date:
+ * Project GPS-Tracker - Simple Site Survey Tool
+ * Description: For determining signal quality at propsective Electron sites
+ * Author: Chip McClelland
+ * Date: 12-12-17
  */
- // Port of TinyGPS for the Particle AssetTracker
- // https://github.com/mikalhart/TinyGPSPlus
+
 
  // Variables I want to change often and pull them all together here
  #define SOFTWARERELEASENUMBER "0.75"
- #define TESTMODE 1
-
 
  #include "Particle.h"
- #include "TinyGPS++.h"
- #include "electrondoc.h"                                 // Documents pinout
+ #include "TinyGPS++.h"                       // https://github.com/mikalhart/TinyGPSPlus
+ #include "electrondoc.h"                     // Documents pinout
 
  // Prototypes and System Mode calls
  SYSTEM_THREAD(ENABLED);         // Means my code will not be held up by Particle processes.
@@ -25,8 +22,6 @@
  enum State { INITIALIZATION_STATE, ERROR_STATE, IDLE_STATE, REPORTING_STATE, RESP_WAIT_STATE };
  State state = INITIALIZATION_STATE;
 
- // A sample NMEA stream.
- const char *gpsStream = "$GPRMC,045103.000,A,3014.1984,N,09749.2872,W,0.67,161.46,030913,,,A*7C\r\n";
  // Pin definitions
  const int enablePin = B4;      // Hold low to power down the device
  const int fixPin = B3;
@@ -94,11 +89,6 @@
   if (state != ERROR_STATE) {
     state = IDLE_STATE;                         // IDLE unless error from above code
     Serial.println("State - Idle");
-  }
-
-  if (TESTMODE) {
-    gps.encode(*gpsStream);
-    gpsFix = true;
   }
 
  }
