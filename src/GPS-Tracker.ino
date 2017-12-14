@@ -28,14 +28,12 @@
 
  // Reporting intervals
  const unsigned long Ubidots_Frequency = 30000;     // How often will we report to Ubidots
- const unsigned long webhookWaitTime = 20000;     // How long will we wait for a webhook response
+ const unsigned long webhookWaitTime = 10000;     // How long will we wait for a webhook response
  const unsigned long Particle_Frequency = 1000;     // Will limit how often we send updates
 
  // Program control valriables
  unsigned long ubidotsPublish = 0;               // When was the last time we published
  unsigned long lastPublish = 0;
-
- unsigned long webhookTimeStamp = 0;              // When did we send the webhook
  bool dataInFlight = false;                       // Tells us we send data but it has not yet been acknowledged by Ubidots
  volatile bool fixFlag = false;                   // Tracks fixLED interrupts
  unsigned long lastFixFlash = 0;                  // when was the last flash
@@ -131,8 +129,9 @@
        digitalWrite(ledPin,HIGH);                         // So you can see when a datapoint is received
        delay(2000);
        digitalWrite(ledPin,LOW);
+       break;
      }
-     else if (millis() >= (webhookTimeStamp + webhookWaitTime)) {
+     else if (millis() - ubidotsPublish >= webhookWaitTime) {
        state = ERROR_STATE;                               // Response timed out
        waitUntil(meterParticlePublish);     // Meter our Particle publishes
        Particle.publish("State","Response Timeout Error");
@@ -169,8 +168,8 @@ void sendEvent()
   char data[256];                                         // Store the date in this character array - not global
   snprintf(data, sizeof(data), "{\"battery\":%i, \"signal\":%i, \"lat\":%f, \"lng\":%f}",stateOfCharge, RSSI, gps.location.lat(), gps.location.lng());
   Particle.publish("GPSlog_hook", data, PRIVATE);
-  ubidotsPublish = millis();
-  dataInFlight = true; // set the data inflight flag
+  ubidotsPublish = millis();            // This is how we meter out publishing to Ubidots
+  dataInFlight = true;                  // set the data inflight flag - cleared when we get the 201 response
 }
 
 void UbidotsHandler(const char *event, const char *data)  // Looks at the response from Ubidots - Will reset Photon if no successful response
