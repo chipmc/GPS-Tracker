@@ -6,7 +6,7 @@
  */
 
  // Variables I want to change often and pull them all together here
- #define SOFTWARERELEASENUMBER "0.5"
+ #define SOFTWARERELEASENUMBER "0.55"
 
  #include "Particle.h"
  #include "TinyGPS++.h"                       // https://github.com/mikalhart/TinyGPSPlus
@@ -18,17 +18,20 @@
  TinyGPSPlus gps;                // The TinyGPS++ object
 
  // State Maching Variables
- enum State { INITIALIZATION_STATE, ERROR_STATE, IDLE_STATE, REPORTING_STATE, RESP_WAIT_STATE };
+ enum State { INITIALIZATION_STATE, ERROR_STATE, IDLE_STATE, REPORTING_STATE, RESP_WAIT_STATE, RESP_RECEIVED_STATE };
  State state = INITIALIZATION_STATE;
 
  // Pin definitions
  const int enablePin = B4;      // Hold low to power down the device
  const int fixPin = B3;         // From the GPS modlue - tracks the status "red" LED
  const int ledPin = D7;         // To give a visual indication when a datapoint is recorded
+ const int donePin = D6;                     // Pin the Electron uses to "pet" the watchdog
+ const int wakeUpPin = A7;                   // This is the Particle Electron WKP pin
+
 
  // Reporting intervals
- const unsigned long Ubidots_Frequency = 30000;     // How often will we report to Ubidots
- const unsigned long webhookWaitTime = 10000;     // How long will we wait for a webhook response
+ const unsigned long Ubidots_Frequency = 60000;     // How often will we report to Ubidots
+ const unsigned long webhookWaitTime = 10000;       // How long will we wait for a webhook response
  const unsigned long Particle_Frequency = 1000;     // Will limit how often we send updates
 
  // Program control valriables
@@ -60,6 +63,11 @@
   pinMode(ledPin,OUTPUT);              // So we can signal when a datapoint is received
   digitalWrite(ledPin,LOW);
   pinMode(fixPin,INPUT);               // Tied to the red indicator LED on the GPS Module
+  pinMode(wakeUpPin,INPUT);            // This pin is active HIGH
+  pinMode(donePin,OUTPUT);             // Allows us to pet the watchdog
+  digitalWrite(donePin,HIGH);
+  digitalWrite(donePin,LOW);           // Pet the watchdog
+
 
   char responseTopic[125];
   String deviceID = System.deviceID();                                // Multiple Electrons share the same hook - keeps things straight
@@ -74,6 +82,7 @@
 
   Particle.function("Reset",resetNow);
 
+  attachInterrupt(wakeUpPin, watchdogISR, RISING);   // The watchdog timer will signal us and we have to respond
   attachInterrupt(fixPin,fixISR,RISING);                    // Going to see when we have a fix
   lastFixFlash = millis();
 
@@ -93,6 +102,7 @@
    case IDLE_STATE:
      if (fixFlag) {
        fixFlag = false;                                     // Clear the fixFlag
+       int nonZero = int(gps.location.lat() + gps.location.lng());
        if (millis()-lastFixFlash >= 10000)  gpsFix = true;  // Flashes every 15 sec when it has a fix
        else  gpsFix = false;                                // Flashes every second when it is looking
        lastFixFlash = millis();                 // Reset the flag timer
@@ -106,7 +116,7 @@
    break;
 
    case REPORTING_STATE:
-     while (Serial1.available() > 0) {
+     if (Serial1.available() > 0) {
        if (gps.encode(Serial1.read())) {
          displayInfo();
          takeMeasurements();
@@ -120,23 +130,26 @@
    break;
 
    case RESP_WAIT_STATE:
-     if (!dataInFlight)                                  // Response received
+     if (millis() - ubidotsPublish >= webhookWaitTime)
      {
-       state = IDLE_STATE;
-       waitUntil(meterParticlePublish);     // Meter our Particle publishes
-       Particle.publish("State","Idle");
-       lastPublish = millis();
-       digitalWrite(ledPin,HIGH);                         // So you can see when a datapoint is received
-       delay(2000);
-       digitalWrite(ledPin,LOW);
-       break;
-     }
-     else if (millis() - ubidotsPublish >= webhookWaitTime) {
        state = ERROR_STATE;                               // Response timed out
        waitUntil(meterParticlePublish);     // Meter our Particle publishes
        Particle.publish("State","Response Timeout Error");
        lastPublish = millis();
      }
+   break;
+
+   case RESP_RECEIVED_STATE:
+     state = IDLE_STATE;
+     waitUntil(meterParticlePublish);     // Meter our Particle publishes
+     Particle.publish("State","Idle");
+     lastPublish = millis();
+     gpsSamples++;                                         // So you can see how many samples are recorded
+     digitalWrite(ledPin,HIGH);                         // So you can see when a datapoint is received
+     delay(2000);
+     digitalWrite(ledPin,LOW);
+     gpsFix = false;
+     lastFixFlash = millis();
    break;
 
    case ERROR_STATE:                                      // To be enhanced - where we deal with errors
@@ -167,7 +180,9 @@ void sendEvent()
 {
   char data[256];                                         // Store the date in this character array - not global
   snprintf(data, sizeof(data), "{\"battery\":%i, \"signal\":%i, \"lat\":%f, \"lng\":%f}",stateOfCharge, RSSI, gps.location.lat(), gps.location.lng());
+  waitUntil(meterParticlePublish);     // Meter our Particle publishes
   Particle.publish("GPSlog_hook", data, PRIVATE);
+  lastPublish = millis();
   ubidotsPublish = millis();            // This is how we meter out publishing to Ubidots
   dataInFlight = true;                  // set the data inflight flag - cleared when we get the 201 response
 }
@@ -187,8 +202,7 @@ void UbidotsHandler(const char *event, const char *data)  // Looks at the respon
     waitUntil(meterParticlePublish);     // Meter our Particle publishes
     Particle.publish("State","Response Received");
     lastPublish = millis();
-    dataInFlight = false;                                 // Data has been received
-    gpsSamples++;                                         // So you can see how many samples are recorded
+    state = RESP_RECEIVED_STATE;                                // Data has been received
   }
   else {
     waitUntil(meterParticlePublish);     // Meter our Particle publishes
@@ -232,4 +246,10 @@ bool meterParticlePublish(void)
 {
   if(millis() - lastPublish >= Particle_Frequency) return 1;
   else return 0;
+}
+
+void watchdogISR()
+{
+  digitalWrite(donePin, HIGH);                              // Pet the watchdog
+  digitalWrite(donePin, LOW);
 }
