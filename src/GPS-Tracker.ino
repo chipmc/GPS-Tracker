@@ -102,7 +102,6 @@
    case IDLE_STATE:
      if (fixFlag) {
        fixFlag = false;                                     // Clear the fixFlag
-       int nonZero = int(gps.location.lat() + gps.location.lng());
        if (millis()-lastFixFlash >= 10000)  gpsFix = true;  // Flashes every 15 sec when it has a fix
        else  gpsFix = false;                                // Flashes every second when it is looking
        lastFixFlash = millis();                 // Reset the flag timer
@@ -118,12 +117,18 @@
    case REPORTING_STATE:
      if (Serial1.available() > 0) {
        if (gps.encode(Serial1.read())) {
-         displayInfo();
+         bool nonZero = displayInfo();
          takeMeasurements();
-         sendEvent();
-         state = RESP_WAIT_STATE;                            // Wait for Response
          waitUntil(meterParticlePublish);     // Meter our Particle publishes
-         Particle.publish("State","Waiting for Response");
+         if (nonZero) {
+           sendEvent();
+           state = RESP_WAIT_STATE;                            // Wait for Response
+           Particle.publish("State","Waiting for Response");
+         }
+         else {
+           state = IDLE_STATE;
+           Particle.publish("State","Invalid GPS - Idle");
+         }
          lastPublish = millis();
        }
      }
@@ -165,7 +170,7 @@
    }
  }
 
-void displayInfo()
+bool displayInfo()
 {
   char buf[128];
   if (gps.location.isValid()) snprintf(buf, sizeof(buf), "%f,%f,%f", gps.location.lat(), gps.location.lng(), gps.altitude.meters());
@@ -173,6 +178,8 @@ void displayInfo()
   waitUntil(meterParticlePublish);     // Meter our Particle publishes
   Particle.publish("gps", buf);
   lastPublish = millis();
+  if (int(gps.location.lat() + gps.location.lng())) return 1;
+  else return 0;
 }
 
 
