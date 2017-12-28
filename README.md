@@ -12,7 +12,7 @@ This tool provides a simple way to measure the signal strength and associate eac
 1) Charge the sensor using the 2.1mm barrel connector.  This is a center positive connector which requires a 5V / 2A supply.  When charging, a red indicator light will illuminate on the Electron.
 2) Getting a GPS fix may take some time if location and time zone has changed.  Watch the red flashing light on the GPS module and position the active antenna in a location where it has the best possible view of the sky.
 3) The PCB antenna which comes with the Electron is non-directional but best results will be achieved if the long axis of the antenna is perpendicular to the ground.
-4) This software was written for use with the Particle Electron carrier. You can see details on this carrier (here)[https://www.hackster.io/chipmc/particle-electron-carrier-for-outdoor-iot-applications-40ed52]
+4) This software was written for use with the Particle Electron carrier. You can see details on this carrier [here](https://www.hackster.io/chipmc/particle-electron-carrier-for-outdoor-iot-applications-40ed52)
 
 ## Attribution
 Physical and Software design - Chip McClelland - chip@seeinisghts.com
