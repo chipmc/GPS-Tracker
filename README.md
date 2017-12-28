@@ -1,3 +1,4 @@
-# TinyGPS++
+# Simple Site Survey Tool
 
-TinyGPS++ library for www.particle.io devices such as the Photon and Electron.
+This tool provides a simple way to measure the signal strength and associate
+each reading with a GPS coordinate.

@@ -22,11 +22,13 @@
  State state = INITIALIZATION_STATE;
 
  // Pin definitions
- const int enablePin = B4;      // Hold low to power down the device
- const int fixPin = B3;         // From the GPS modlue - tracks the status "red" LED
- const int ledPin = D7;         // To give a visual indication when a datapoint is recorded
- const int donePin = D6;                     // Pin the Electron uses to "pet" the watchdog
- const int wakeUpPin = A7;                   // This is the Particle Electron WKP pin
+ const int enablePin = B4;                    // Hold low to power down the device
+ const int fixPin = B3;                       // From the GPS modlue - tracks the status "red" LED
+ const int ledPin = D7;                       // To give a visual indication when a datapoint is recorded
+ const int donePin = D6;                      // Pin the Electron uses to "pet" the watchdog
+ const int wakeUpPin = A7;                    // This is the Particle Electron WKP pin
+ const int intPin = D3;                       // PIR Sensor interrupt pin
+
 
 
  // Reporting intervals
@@ -41,6 +43,7 @@
  volatile bool fixFlag = false;                   // Tracks fixLED interrupts
  unsigned long lastFixFlash = 0;                  // when was the last flash
  bool gpsFix = false;                             // keeps track of our fix Status
+ bool sensorDetect = false;                       // So you can start to test the PIR sensor
  int resetCount = 0;                              // Can track resets for future reporting
  int errorCount = 0;                              // So we don't reset everytime a datapoint gets lost
  int RSSI = 0;                                    // Signal strength in dBi
@@ -67,7 +70,7 @@
   pinMode(donePin,OUTPUT);             // Allows us to pet the watchdog
   digitalWrite(donePin,HIGH);
   digitalWrite(donePin,LOW);           // Pet the watchdog
-
+  pinMode(intPin,INPUT);               // PIR Sensor Interrupt pin
 
   char responseTopic[125];
   String deviceID = System.deviceID();                                // Multiple Electrons share the same hook - keeps things straight
@@ -82,6 +85,7 @@
 
   Particle.function("Reset",resetNow);
 
+  attachInterrupt(intPin,sensorISR,RISING);   // Will know when the PIR sensor is triggered
   attachInterrupt(wakeUpPin, watchdogISR, RISING);   // The watchdog timer will signal us and we have to respond
   attachInterrupt(fixPin,fixISR,RISING);                    // Going to see when we have a fix
   lastFixFlash = millis();
@@ -112,6 +116,12 @@
        Particle.publish("State","Reporting");
        lastPublish = millis();
      }
+     if (sensorDetect) {
+       sensorDetect = false;
+       waitUntil(meterParticlePublish);
+       Particle.publish("State","IDLE - PIR Event detected");
+       lastPublish = millis();
+     }
    break;
 
    case REPORTING_STATE:
@@ -127,7 +137,7 @@
          }
          else {
            state = IDLE_STATE;
-           Particle.publish("State","Invalid GPS - Idle");
+           Particle.publish("State","IDLE - Invalid GPS");
          }
          lastPublish = millis();
        }
@@ -259,4 +269,9 @@ void watchdogISR()
 {
   digitalWrite(donePin, HIGH);                              // Pet the watchdog
   digitalWrite(donePin, LOW);
+}
+
+void sensorISR()
+{
+  sensorDetect = true;                                      // sets the sensor flag for the main loop
 }
