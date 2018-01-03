@@ -32,7 +32,9 @@
  * TX - GPS RX
  * RX - GPS TX
  * B4 - GPS Enable
- * B3 - Fix
+ * B3 - Fix (interrupt)
+ * D6 - Done pin (signal back to watchdog)
+ * A7 - wakeUpPin (interrupt) from watchdog
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

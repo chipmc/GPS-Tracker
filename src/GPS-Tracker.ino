@@ -1,7 +1,8 @@
 /*
  * Project GPS-Tracker - Simple Site Survey Tool
  * Description: For determining signal quality at propsective Electron sites
- * Author: Chip McClelland
+ * Author: Chip McClelland - See Insights LLC - seeinsights.com
+ * Sponsor: Simple Sense - simplesense.io
  * Date: 12-12-17
  */
 
