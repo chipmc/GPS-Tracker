@@ -1,2 +1,3 @@
 # Flash Files
 *.bin
+.DS_Store
