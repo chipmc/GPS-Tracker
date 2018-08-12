@@ -34,7 +34,7 @@
 
  // Reporting intervals
  const unsigned long Ubidots_Frequency = 60000;     // How often will we report to Ubidots
- const unsigned long webhookWaitTime = 10000;       // How long will we wait for a webhook response
+ const unsigned long webhookWaitTime = 30000;       // How long will we wait for a webhook response
  const unsigned long Particle_Frequency = 1000;     // Will limit how often we send updates
 
  // Program control valriables
